@@ -1,47 +1,43 @@
-export const config = {
-  runtime: "edge",
-};
-
-export default async function handler(req) {
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const body = await req.json();
-    const { messages, prompt } = body;
+    const { message } = req.body;
 
-    const apiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat",
+        model: 'deepseek-chat', // ✅ DeepSeek model
         messages: [
-          { role: "system", content: prompt },
-          ...messages,
+          {
+            role: 'user',
+            content: message,
+          },
         ],
       }),
     });
 
-    const data = await apiRes.json();
+    if (!openRouterRes.ok) {
+      const errorDetails = await openRouterRes.json();
+      return res.status(openRouterRes.status).json({ error: errorDetails });
+    }
 
-    return new Response(
-      JSON.stringify({ reply: data.choices?.[0]?.message?.content || "⚠️ No reply." }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    const data = await openRouterRes.json();
+    const reply = data.choices?.[0]?.message?.content || 'No response from model.';
+
+    return res.status(200).json({ reply });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Server Error", details: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error('Error in /api/chat:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
