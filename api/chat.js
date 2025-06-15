@@ -1,20 +1,42 @@
-export default async function handler(req, res) {
-  const { messages, model } = req.body;
+export const config = {
+  runtime: "edge", // Optional: enables faster cold starts
+};
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+export default async function handler(req) {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages
-    })
-  });
+  try {
+    const { messages, prompt } = await req.json();
 
-  const data = await response.json();
-  res.status(200).json(data);
+    const apiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek/deepseek-chat", // or any model you prefer
+        messages: [
+          { role: "system", content: prompt },
+          ...messages,
+        ],
+      }),
+    });
+
+    const data = await apiRes.json();
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: "Server Error", details: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
