@@ -1,20 +1,20 @@
 export default async function handler(req, res) {
-  try {
-    const API_KEY = process.env.OPENROUTER_API_KEY;
+  const { messages, model } = req.body;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify(req.body),
-    });
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
-    const data = await response.json();
-    res.status(200).json(data);
-  } catch (err) {
-    console.error("Error in backend:", err);
-    res.status(500).json({ error: "Something went wrong" });
-  }
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages
+    })
+  });
+
+  const data = await response.json();
+  res.status(200).json(data);
 }
